@@ -166,9 +166,19 @@ public struct OTelEnvironment: Sendable {
     ///
     /// - Returns: An ``OTelEnvironment`` exposing the process-wide environment values.
     public static func detected() -> OTelEnvironment {
-        var values = [String: String]()
-
+        #if canImport(Musl)
+        // On musl, `environ` can be Optional<UnsafeMutablePointer<CChar>?>.
+        // So we safely bind it here:
+        guard let environmentPointer = environ else {
+            // If it's `nil`, return an empty environment or handle gracefully
+            return OTelEnvironment(values: [:])
+        }
+        #else
+        // On glibc or Darwin, `environ` is typically non-optional
         let environmentPointer = environ
+        #endif
+
+        var values = [String: String]() 
         var index = 0
 
         while let entry = environmentPointer.advanced(by: index).pointee {
